@@ -343,5 +343,5 @@ Open your browser and go to **http://127.0.0.1:8000/**
 
 <div align="center">
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:16213e,100:0d1117&height=120&section=footer" width="100%" />
-<sub>Built for the HPE Hackathon — 100% local, no external API calls, no API keys.</sub>
+<sub>Built for the Snapdragon AI Lab Build & Present Challenge — 100% local, no external API calls, no API keys.</sub>
 </div>
