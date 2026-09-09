@@ -220,14 +220,9 @@ def load_everything() -> None:
     print(f"[server] Loading embedding model from {settings.EMBED_MODEL_PATH} …")
     state.embedder = get_embedder()
 
-    print(f"[server] Loading LLM from {settings.LLM_MODEL_PATH} …")
-    from llama_cpp import Llama
-    state.llm = Llama(
-        model_path=settings.LLM_MODEL_PATH,
-        n_ctx=settings.N_CTX,
-        n_gpu_layers=settings.N_GPU_LAYERS,
-        verbose=False,
-    )
+    print(f"[server] Initialising LLM backend (LLM_BACKEND={settings.LLM_BACKEND}) …")
+    from pipeline.llm.factory import get_llm_backend
+    state.llm = get_llm_backend(settings)
 
     def _warm_reranker():
         try:
@@ -356,6 +351,40 @@ async def admin_rebuild():
 @app.get("/api/metrics")
 def metrics():
     return get_metrics()
+
+
+# ---------------------------------------------------------------------------
+# LLM health + hardware info endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/llm/health")
+def llm_health():
+    """
+    Return active LLM backend status, model, runtime, and device.
+
+    IMPORTANT: 'device' is only reported as 'Snapdragon NPU' if the
+    QNNExecutionProvider is confirmed active.  This endpoint never
+    fabricates NPU claims.
+    """
+    if state.llm is None:
+        return {"status": "not_loaded", "backend": "none"}
+    return state.llm.health()
+
+
+@app.get("/api/hardware")
+def hardware_info():
+    """
+    Return detected hardware and runtime capability summary.
+
+    Use this to verify whether QNN / Snapdragon NPU is available on the
+    current machine without starting a query.
+    """
+    from pipeline.llm.hardware_detect import detect_hardware
+    hw = detect_hardware()
+    active_backend = "none"
+    if state.llm is not None:
+        active_backend = state.llm.backend_name
+    return {**hw, "active_llm_backend": active_backend}
 
 
 # ---------------------------------------------------------------------------
@@ -692,28 +721,18 @@ def query(req: QueryRequest):
         token_queue: queue.Queue = queue.Queue()
 
         def _run_llm():
-            """Run llama_cpp inference in a thread; push tokens into queue."""
+            """Run LLM inference in a thread via the active backend; push events into queue."""
             try:
-                stream = state.llm.create_chat_completion(
+                for kind, val in state.llm.stream(
                     messages=prompt,
                     max_tokens=settings.MAX_NEW_TOKENS,
                     temperature=settings.LLM_TEMPERATURE,
                     top_p=settings.LLM_TOP_P,
                     repeat_penalty=settings.LLM_REPEAT_PENALTY,
-                    stream=True,
-                )
-                
-                first_token = True
-                for chunk in stream:
-                    delta = chunk["choices"][0]["delta"]
-                    if "content" in delta:
-                        text = delta["content"]
-                        if first_token:
-                            ttft_ms = int((time.time() - t_llm_start) * 1000)
-                            token_queue.put(("ttft", ttft_ms))
-                            first_token = False
-                        token_queue.put(("token", text))
-                token_queue.put(("done", None))
+                ):
+                    token_queue.put((kind, val))
+                    if kind in ("done", "error"):
+                        return
             except Exception as exc:
                 print(f"[server] LLM error: {exc}")
                 token_queue.put(("error", str(exc)))

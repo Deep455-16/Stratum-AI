@@ -52,6 +52,26 @@ LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.1"))
 LLM_TOP_P       = float(os.getenv("LLM_TOP_P", "0.8"))
 LLM_REPEAT_PENALTY = float(os.getenv("LLM_REPEAT_PENALTY", "1.1"))
 
+# ── LLM Backend Selection ─────────────────────────────────────────────────────
+# LLM_BACKEND: "auto" | "llama" | "snapdragon"
+#   auto        → detect QNN at runtime; use Snapdragon if available, else llama
+#   llama       → always use llama-cpp-python (Intel/CPU path)
+#   snapdragon  → always attempt Snapdragon/QNN backend; error if unavailable
+LLM_BACKEND = os.getenv("LLM_BACKEND", "auto")
+
+# Path to the Qwen3-4B ONNX model directory (Snapdragon path).
+# Download from: https://aihub.qualcomm.com or
+#   huggingface-cli download qualcomm/Qwen3-4B --local-dir models/Qwen3-4B-onnx
+SNAPDRAGON_MODEL_PATH = os.getenv(
+    "SNAPDRAGON_MODEL_PATH", str(MODELS_DIR / "Qwen3-4B-onnx")
+)
+
+# Whether to allow QNN execution (set to "0" to disable even on Snapdragon)
+QNN_ENABLED = os.getenv("QNN_ENABLED", "1") == "1"
+
+# QNN backend type: "npu" (Hexagon NPU, default) | "gpu" | "cpu"
+QNN_BACKEND_TYPE = os.getenv("QNN_BACKEND_TYPE", "npu")
+
 # ── Cache ─────────────────────────────────────────────────────────────────────
 CACHE_MAX_SIZE   = int(os.getenv("CACHE_MAX_SIZE", "256"))
 CACHE_ENABLED    = os.getenv("CACHE_ENABLED", "1") == "1"

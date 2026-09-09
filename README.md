@@ -341,7 +341,206 @@ Open your browser and go to **http://127.0.0.1:8000/**
 
 <br/>
 
+<br/>
+
 <div align="center">
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:16213e,100:0d1117&height=120&section=footer" width="100%" />
 <sub>Built for the Snapdragon AI Lab Build & Present Challenge — 100% local, no external API calls, no API keys.</sub>
 </div>
+
+---
+
+<h2 id="snapdragon-ai-support">Snapdragon AI Support</h2>
+
+> **Stratum AI remains fully local and offline — no data ever leaves your machine.**
+
+Stratum AI now supports two hardware paths for LLM inference, selected automatically at startup:
+
+| Path | Machine | Model | Runtime | Device |
+|------|---------|-------|---------|--------|
+| **Intel / CPU** | Intel, AMD, or any x86 laptop | Qwen2.5-3B-Instruct (GGUF) | llama.cpp | CPU |
+| **Snapdragon NPU** | Snapdragon X Elite / X2 Elite (Windows ARM64) | Qwen3-4B (ONNX) | ONNX Runtime + QNN | Snapdragon NPU |
+
+The RAG/retrieval architecture (FAISS, BM25, RRF, reranker, prompt builder) is **completely hardware-independent**. Only the final LLM inference layer differs.
+
+<br/>
+
+### Updated Architecture
+
+```
+            STRATUM AI
+                 |
+     Local RAG Engine (hardware-independent)
+                 |
+    Runbooks -> Chunker -> FAISS + BM25
+                 |
+               RRF Fusion
+                 |
+            BGE Reranker
+                 |
+          Confidence Gate
+                 |
+           Prompt Builder
+                 |
+        +---------+---------+
+        |                   |
+    Intel/CPU           Snapdragon
+        |                   |
+   llama.cpp          ONNX Runtime
+        |                   |
+    Qwen2.5-3B          QNN EP
+        |                   |
+      CPU               Snapdragon NPU
+        |                   |
+        +---------+---------+
+                 |
+           Cited Answer (SSE stream)
+```
+
+```mermaid
+flowchart TD
+    A["Runbooks (.md .pdf .docx .pptx)"]
+        --> B["Structure-aware Chunker"]
+        --> C["index_store (faiss.index + bm25.pkl + chunks.json)"]
+
+    Q["On-call Question"]
+        --> D["Dense Search (MiniLM-L6 + FAISS)"]
+    Q --> E["Sparse Search (BM25 Okapi)"]
+
+    C -.-> D
+    C -.-> E
+
+    D --> F["Reciprocal Rank Fusion (RRF)"]
+    E --> F
+    F --> G["Cross-Encoder Rerank (bge-reranker-base)"]
+    G --> H{"Confident Match?"}
+    H -->|No| I["Escalate Card"]
+    H -->|Yes| J["Prompt Builder"]
+
+    J --> K{"LLM Backend"}
+    K -->|"llama (Intel/CPU)"| L["Qwen2.5-3B GGUF via llama.cpp"]
+    K -->|"snapdragon (QNN)"| M["Qwen3-4B ONNX via QNNExecutionProvider"]
+    L --> N["Frontend (SSE streaming + citations)"]
+    M --> N
+
+    style K fill:#0d1117,stroke:#F58025,color:#C9D1D9
+    style L fill:#0d1117,stroke:#58A6FF,color:#C9D1D9
+    style M fill:#0d1117,stroke:#8957E5,color:#C9D1D9
+```
+
+<br/>
+
+### Capability Matrix
+
+| Claim | Meaning |
+|-------|---------|
+| **SUPPORTED** | The code has a Snapdragon backend (`pipeline/llm/snapdragon_backend.py`) |
+| **AVAILABLE** | `onnxruntime-qnn` is installed and `QNNExecutionProvider` is in the provider list |
+| **ACTIVE** | The Snapdragon backend was selected and model loaded successfully |
+| **NPU** | `QNNExecutionProvider` is confirmed as the active EP (shown in `/api/llm/health`) |
+
+The runtime indicator in the top bar shows the **active** state, never a claimed one.
+
+<br/>
+
+### Intel Setup (existing)
+
+```bash
+# 1. Install dependencies
+pip install -r requirements-intel.txt
+pip install llama-cpp-python
+
+# 2. Download models (Qwen2.5-3B GGUF + MiniLM + BGE reranker)
+python download_models.py
+
+# 3. Ingest runbooks
+python ingest.py
+
+# 4. Start (auto-selects llama backend on Intel)
+START_APP.bat
+# or: python -m uvicorn server:app --port 8000
+```
+
+<br/>
+
+### Snapdragon Setup
+
+> **Requires:** Windows ARM64 machine with Snapdragon X Elite / X2 Elite SoC
+
+```bash
+# 1. Install common + Snapdragon-specific dependencies
+pip install -r requirements-intel.txt
+pip install -r requirements-snapdragon.txt
+
+# 2. Download Qwen3-4B ONNX model (one-time, offline after this)
+huggingface-cli download qualcomm/Qwen3-4B --local-dir models/Qwen3-4B-onnx
+# Or download from: https://aihub.qualcomm.com/compute/models/qwen3-4b
+
+# 3. Download embedding + reranker models (same as Intel)
+python download_models.py
+
+# 4. Ingest runbooks
+python ingest.py
+
+# 5. Start with Snapdragon backend
+START_APP_SNAPDRAGON.bat
+# or: set LLM_BACKEND=snapdragon && python -m uvicorn server:app --port 8000
+```
+
+<br/>
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_BACKEND` | `auto` | `auto` / `llama` / `snapdragon` |
+| `SNAPDRAGON_MODEL_PATH` | `models/Qwen3-4B-onnx` | Path to Qwen3-4B ONNX model directory |
+| `QNN_ENABLED` | `1` | Set to `0` to disable QNN even on Snapdragon |
+| `QNN_BACKEND_TYPE` | `npu` | `npu` / `gpu` / `cpu` (QNN backend target) |
+| `N_CTX` | `8192` | llama.cpp context window size |
+| `N_GPU_LAYERS` | `-1` | llama.cpp GPU layer offload (-1 = all) |
+
+<br/>
+
+### Verify Active Backend
+
+```bash
+# Check hardware + runtime capabilities
+curl http://127.0.0.1:8000/api/hardware
+
+# Check active LLM backend status
+curl http://127.0.0.1:8000/api/llm/health
+```
+
+**Intel output example:**
+```json
+{
+  "backend": "llama",
+  "model": "Qwen2.5-3B-Instruct-Q3_K_M.gguf",
+  "runtime": "llama.cpp",
+  "device": "CPU",
+  "status": "ready",
+  "qnn_available": false
+}
+```
+
+**Snapdragon output example** *(requires Snapdragon hardware + onnxruntime-qnn)*:
+```json
+{
+  "backend": "snapdragon",
+  "model": "Qwen3-4B-onnx",
+  "runtime": "ONNX Runtime",
+  "execution_provider": "QNNExecutionProvider",
+  "device": "Snapdragon NPU",
+  "status": "ready",
+  "npu_active": true,
+  "qnn_available": true
+}
+```
+
+> [!IMPORTANT]
+> `"npu_active": true` is only reported when `QNNExecutionProvider` is confirmed as the active execution provider. This is verified at runtime, not assumed.
+
+> [!NOTE]
+> **Snapdragon NPU execution requires validation on compatible Qualcomm hardware.**
+> All tests on this Intel development machine confirm the code path, backend selection logic, and error handling — but actual NPU execution can only be validated on a Snapdragon X Elite / X2 Elite device with `onnxruntime-qnn` installed.

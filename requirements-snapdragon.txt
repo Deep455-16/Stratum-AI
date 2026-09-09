@@ -1,0 +1,46 @@
+# =============================================================================
+# requirements-snapdragon.txt
+# Stratum AI — Qualcomm Snapdragon inference backend
+# =============================================================================
+# REQUIRES: Windows ARM64 machine with Qualcomm Snapdragon SoC
+#           (Snapdragon X Elite / X2 Elite or compatible)
+#
+# Install with:
+#   pip install -r requirements-intel.txt        # common dependencies first
+#   pip install -r requirements-snapdragon.txt   # Snapdragon-specific additions
+#
+# =============================================================================
+
+# ── ONNX Runtime with QNN Execution Provider ──────────────────────────────────
+# Official package — ARM64 Windows only, provides QNNExecutionProvider
+# https://pypi.org/project/onnxruntime-qnn/
+onnxruntime-qnn
+
+# ── ONNX Runtime GenAI (token-level streaming on Snapdragon) ─────────────────
+# Provides true token streaming for generative models.
+# Optional — if not installed, backend uses a compatibility streaming layer.
+# https://pypi.org/project/onnxruntime-genai/
+onnxruntime-genai
+
+# ── Base ONNX Runtime (may be installed as dependency of the above) ───────────
+onnxruntime
+
+# ── Model download helper ─────────────────────────────────────────────────────
+huggingface_hub
+
+# =============================================================================
+# Model download (Snapdragon path)
+# =============================================================================
+# The Qwen3-4B ONNX model must be downloaded separately.
+#
+# Option A — Qualcomm AI Hub:
+#   https://aihub.qualcomm.com/compute/models/qwen3-4b
+#   (Download pre-optimised ONNX assets for Snapdragon X Elite)
+#
+# Option B — Hugging Face (qualcomm org):
+#   huggingface-cli download qualcomm/Qwen3-4B \
+#       --local-dir models/Qwen3-4B-onnx
+#
+# Then set environment variable:
+#   SNAPDRAGON_MODEL_PATH=models/Qwen3-4B-onnx
+# =============================================================================

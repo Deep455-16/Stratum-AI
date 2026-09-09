@@ -803,6 +803,41 @@ body[data-theme="light"] .evidence-summary { background: #f1f5f9; border-color: 
 body[data-theme="light"] .evidence-summary .evidence-count { color: #2563eb; }
 body[data-theme="light"] .history-query { color: #0f172a; }
 body[data-theme="light"] .history-time { color: #64748b; }
+
+/* ==========================================================================
+   RUNTIME INDICATOR BADGE
+   ========================================================================== */
+.runtime-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(26,30,40,.7);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: default;
+  transition: border-color .2s, background .2s;
+}
+.runtime-badge:hover { border-color: var(--accent-blue); background: rgba(77,142,255,.08); }
+.runtime-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  flex-shrink: 0;
+  transition: background .3s;
+}
+.runtime-dot.ready   { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.runtime-dot.npu     { background: #a78bfa; box-shadow: 0 0 8px #a78bfa; }
+.runtime-dot.loading { background: var(--warning); animation: glowPulse 1.5s infinite; }
+.runtime-label { color: var(--accent-blue); font-weight: 600; letter-spacing: .04em; }
+.runtime-sep   { color: var(--border-subtle); }
+#runtime-backend { color: var(--text-primary); }
+#runtime-device  { color: var(--success); }
+#runtime-device.npu { color: #a78bfa; }
 </style>
 </head>
 <body>
@@ -843,6 +878,15 @@ body[data-theme="light"] .history-time { color: #64748b; }
     <span id="stat-mode" class="stat accent">—</span>
   </div>
   <div class="topbar-right">
+    <!-- ── Runtime Indicator ── -->
+    <div class="runtime-badge" id="runtime-badge" title="Local AI runtime info">
+      <span class="runtime-dot" id="runtime-dot"></span>
+      <span class="runtime-label">LOCAL AI</span>
+      <span class="runtime-sep">·</span>
+      <span id="runtime-backend">—</span>
+      <span class="runtime-sep">·</span>
+      <span id="runtime-device">—</span>
+    </div>
     <button class="sidebar-toggle" id="btn-shell" title="Open Shell">⌨</button>
     <button class="sidebar-toggle" id="btn-split-screen" title="Toggle Split Screen">◫</button>
     <button class="sidebar-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle Light/Dark Theme" style="display:flex;">
@@ -1565,6 +1609,7 @@ async function sendQuery(inputEl, retryCount = 0) {
           scrollDown();
         } else if (payload.type === 'done') {
           generationMs = payload.generation_ms;
+          document.dispatchEvent(new CustomEvent('stratum:query-done'));
         }
       }
     }
@@ -1780,6 +1825,59 @@ $('shell-analyze-btn').addEventListener('click', () => {
   shellContext = lines.slice(-50).join('\n');
   showToast('Shell output queued for next query!', 'info');
 });
+
+/* ── Runtime Indicator ─────────────────────────────────────────────────────── */
+async function refreshRuntimeBadge() {
+  const dot     = $('runtime-dot');
+  const backend = $('runtime-backend');
+  const device  = $('runtime-device');
+  dot.className = 'runtime-dot loading';
+  try {
+    const res = await fetch('/api/llm/health');
+    if (!res.ok) throw new Error(res.status);
+    const h = await res.json();
+
+    // Backend label
+    const backendLabel = h.backend === 'snapdragon'
+      ? 'Qwen3 (ONNX)'
+      : h.backend === 'llama'
+        ? 'Qwen2.5 (llama.cpp)'
+        : h.backend || '—';
+    backend.textContent = backendLabel;
+
+    // Device label + colouring
+    const dev = h.device || '—';
+    device.textContent = dev;
+    const isNPU = dev.toLowerCase().includes('npu');
+    device.className = isNPU ? 'npu' : '';
+    dot.className = 'runtime-dot ' + (isNPU ? 'npu' : 'ready');
+
+    // Update badge tooltip with full details
+    const badge = $('runtime-badge');
+    const tip = [
+      'LOCAL AI',
+      'Backend : ' + (h.backend || '—'),
+      'Model   : ' + (h.model || '—'),
+      'Runtime : ' + (h.runtime || '—'),
+      'Device  : ' + dev,
+      h.execution_provider ? 'EP      : ' + h.execution_provider : null,
+      h.load_time_ms != null ? 'Load    : ' + h.load_time_ms + ' ms' : null,
+      h.npu_active === false && h.backend === 'snapdragon'
+        ? '⚠ QNN not active — using CPU fallback' : null,
+    ].filter(Boolean).join('\n');
+    badge.title = tip;
+  } catch(e) {
+    backend.textContent = 'unavailable';
+    device.textContent  = '—';
+    dot.className = 'runtime-dot';
+  }
+}
+
+// Fetch on page load
+refreshRuntimeBadge();
+
+// Also refresh after each query completes (appended in the SSE done handler)
+document.addEventListener('stratum:query-done', refreshRuntimeBadge);
 
 </script>
 </body>
