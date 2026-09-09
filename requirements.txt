@@ -1,0 +1,44 @@
+# --- Core API ---
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+pdfminer.six
+python-docx
+python-pptx
+
+# --- Retrieval ---
+transformers
+torch
+faiss-cpu
+rank-bm25
+numpy
+
+# --- Reranker (cross-encoder, Phase 5) ---
+# Uses transformers AutoModelForSequenceClassification (already listed above)
+# No extra package needed -- bge-reranker-base loads via transformers
+
+# --- Local LLM (Qwen2.5-3B-Instruct GGUF) ---
+# NOTE: llama-cpp-python is installed separately by install.bat using --only-binary
+# to avoid needing a C++ compiler. Do NOT add it back here.
+huggingface_hub
+
+# --- Observability ---
+psutil
+
+# --- Web Search + Runbook Patch Gap ---
+duckduckgo-search
+trafilatura
+
+# --- Utilities ---
+PyYAML
+websockets
+
+# Notes:
+# 1. llama-cpp-python on Windows: plain pip gives CPU-only build.
+#    For GPU offload (GTX 1650 / CUDA), install a prebuilt CUDA wheel:
+#       pip uninstall llama-cpp-python
+#       pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
+# 2. Embeddings and reranker both use plain `transformers` -- no sentence-transformers needed.
+# 3. psutil is used for memory monitoring in observability/logger.py (optional; degrades gracefully).
+# 4. PyYAML is used to parse YAML frontmatter from markdown runbooks.
