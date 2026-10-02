@@ -22,7 +22,7 @@
 ![Local](https://img.shields.io/badge/100%25-Local%20%26%20Offline-2EA043?style=flat-square&labelColor=0d1117)
 ![Status](https://img.shields.io/badge/status-hackathon%20build-8957E5?style=flat-square&labelColor=0d1117)
 
-<sub>HPE Hackathon submission for <strong>#11: Runbook Chatbot Using Retrieval-Augmented Generation</strong> (AIOps / Knowledge Management)</sub>
+<sub>Snapdragon AI Challenge Hackathon submission for <strong>#11: Runbook Chatbot Using Retrieval-Augmented Generation</strong> (AIOps / Knowledge Management)</sub>
 
 </div>
 
