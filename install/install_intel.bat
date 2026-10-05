@@ -83,13 +83,26 @@ pip install transformers huggingface_hub --prefer-binary
 if %errorlevel% neq 0 goto :PIP_FAIL
 echo [OK] transformers + huggingface_hub installed.
 
-:: 6c. Install all remaining requirements (torch + llama-cpp-python already done)
+:: 6c. Install all remaining requirements
+::     --ignore-installed prevents pip from re-downloading + overwriting
+::     already-installed .pyd DLL files (causes WinError 5 "Access is denied"
+::     when Windows has those files memory-mapped from the earlier install steps)
 echo.
 echo [4/7] Installing remaining requirements (requirements-intel.txt)...
 pip install -r requirements-intel.txt ^
     --prefer-binary ^
-    --ignore-installed llama-cpp-python
-if %errorlevel% neq 0 goto :PIP_FAIL
+    --ignore-installed llama-cpp-python torch transformers huggingface_hub
+if %errorlevel% neq 0 (
+    echo.
+    echo [RETRY] First attempt failed - retrying once...
+    echo         If you see "Access is denied", close any other terminals
+    echo         that have this venv active and try again.
+    echo.
+    pip install -r requirements-intel.txt ^
+        --prefer-binary ^
+        --ignore-installed llama-cpp-python torch transformers huggingface_hub
+    if %errorlevel% neq 0 goto :PIP_FAIL
+)
 echo [OK] All requirements installed.
 
 :: 7. Create directories

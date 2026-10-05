@@ -75,10 +75,25 @@ if %errorlevel% neq 0 goto :PIP_FAIL
 echo [OK] transformers + huggingface_hub installed.
 
 :: 4c. Install all remaining common dependencies
+::     --ignore-installed prevents pip from re-downloading + overwriting
+::     already-installed .pyd DLL files (causes WinError 5 "Access is denied"
+::     when Windows has those files memory-mapped from the earlier install steps)
 echo.
 echo [3/7] Installing common dependencies (requirements-intel.txt)...
-pip install -r requirements-intel.txt --prefer-binary
-if %errorlevel% neq 0 goto :PIP_FAIL
+pip install -r requirements-intel.txt ^
+    --prefer-binary ^
+    --ignore-installed torch transformers huggingface_hub
+if %errorlevel% neq 0 (
+    echo.
+    echo [RETRY] First attempt failed - retrying once...
+    echo         If you see "Access is denied", close any other terminals
+    echo         that have this venv active and try again.
+    echo.
+    pip install -r requirements-intel.txt ^
+        --prefer-binary ^
+        --ignore-installed torch transformers huggingface_hub
+    if %errorlevel% neq 0 goto :PIP_FAIL
+)
 echo [OK] Common dependencies installed.
 
 :: 5. Install Snapdragon-specific dependencies (onnxruntime-qnn, genai)
