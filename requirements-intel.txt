@@ -1,0 +1,47 @@
+# =============================================================================
+# requirements-intel.txt
+# Stratum AI — Intel / CPU development environment
+# =============================================================================
+# Install with:
+#   pip install -r requirements-intel.txt
+#
+# Then install llama-cpp-python separately (CPU build):
+#   pip install llama-cpp-python
+#
+# For CUDA GPU offload (optional):
+#   pip install llama-cpp-python \
+#       --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
+#
+# =============================================================================
+
+# ── Core API ──────────────────────────────────────────────────────────────────
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+
+# ── Document parsing ──────────────────────────────────────────────────────────
+pdfminer.six
+python-docx
+python-pptx
+
+# ── Retrieval / Embeddings / Reranker ─────────────────────────────────────────
+transformers
+torch
+faiss-cpu
+rank-bm25
+numpy
+
+# ── LLM (llama-cpp-python installed separately — see install.bat) ─────────────
+huggingface_hub
+
+# ── Observability ─────────────────────────────────────────────────────────────
+psutil
+
+# ── Web Search + Runbook Patch Gap ────────────────────────────────────────────
+duckduckgo-search
+trafilatura
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+PyYAML
+websockets

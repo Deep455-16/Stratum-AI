@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Models (large binary files — download via install scripts)
+models/
+
+# Generated indexes and data
+index_store/
+
+# Runtime / temp
+cache/
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
