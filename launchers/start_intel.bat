@@ -13,6 +13,21 @@ echo.
 
 set LLM_BACKEND=llama
 
+:: Point directly to the existing GGUF — no re-download needed.
+:: To use a different model file, change this path or set LLM_MODEL_PATH before running.
+set LLM_MODEL_PATH=C:\Users\rav62\OneDrive\Desktop\hpe-runbook-main\hpe-runbook-main\models\Qwen2.5-3B-Instruct-Q3_K_M.gguf
+
+:: Embedding / reranker paths — defaults to local models\ directory.
+:: Override via env var if they live elsewhere.
+if "%EMBED_MODEL_PATH%"==""    set EMBED_MODEL_PATH=models\MiniLM-L6-v2
+if "%RERANKER_MODEL_PATH%"=="" set RERANKER_MODEL_PATH=models\bge-reranker-base
+
+echo   LLM_BACKEND        = %LLM_BACKEND%
+echo   LLM_MODEL_PATH     = %LLM_MODEL_PATH%
+echo   EMBED_MODEL_PATH   = %EMBED_MODEL_PATH%
+echo   RERANKER_MODEL_PATH= %RERANKER_MODEL_PATH%
+echo.
+
 :: Check venv
 if not exist "venv\Scripts\activate.bat" (
     echo [ERROR] Virtual environment not found.
@@ -33,19 +48,23 @@ if %errorlevel% neq 0 (
 echo [OK] Dependencies OK.
 echo.
 
-:: Check embedding model
-if not exist "models\MiniLM-L6-v2\model.safetensors" (
-    if not exist "models\MiniLM-L6-v2\pytorch_model.bin" (
-        echo [ERROR] Embedding model missing. Run install\install_intel.bat.
+:: Check embedding model (uses EMBED_MODEL_PATH env var set above)
+if not exist "%EMBED_MODEL_PATH%\model.safetensors" (
+    if not exist "%EMBED_MODEL_PATH%\pytorch_model.bin" (
+        echo [ERROR] Embedding model not found at: %EMBED_MODEL_PATH%
+        echo         Run install\install_intel.bat or set EMBED_MODEL_PATH to the correct path.
         goto :FAIL
     )
 )
+echo [OK] Embedding model found.
 
-:: Check LLM model
-if not exist "models\Qwen2.5-3B-Instruct-Q3_K_M.gguf" (
-    echo [ERROR] LLM model missing. Run install\install_intel.bat.
+:: Check LLM model (uses LLM_MODEL_PATH env var set above)
+if not exist "%LLM_MODEL_PATH%" (
+    echo [ERROR] LLM model not found at: %LLM_MODEL_PATH%
+    echo         Update LLM_MODEL_PATH in this launcher or run install\install_intel.bat.
     goto :FAIL
 )
+echo [OK] LLM model found.
 
 :: Auto-ingest if index is missing
 if not exist "index_store\faiss.index" (

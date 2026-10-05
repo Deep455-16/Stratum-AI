@@ -17,9 +17,11 @@ STATIC_DIR = BASE_DIR / "static"
 RUNBOOKS_DIR = BASE_DIR / "runbooks"
 
 # ── Model paths ──────────────────────────────────────────────────────────────
-EMBED_MODEL_PATH   = str(MODELS_DIR / "MiniLM-L6-v2")
-RERANKER_MODEL_PATH = str(MODELS_DIR / "bge-reranker-base")
-LLM_MODEL_PATH     = str(MODELS_DIR / "Qwen2.5-3B-Instruct-Q3_K_M.gguf")
+# All three paths can be overridden via environment variables — useful when
+# models live outside the project directory (e.g. shared OneDrive folder).
+EMBED_MODEL_PATH    = os.getenv("EMBED_MODEL_PATH",    str(MODELS_DIR / "MiniLM-L6-v2"))
+RERANKER_MODEL_PATH = os.getenv("RERANKER_MODEL_PATH", str(MODELS_DIR / "bge-reranker-base"))
+LLM_MODEL_PATH      = os.getenv("LLM_MODEL_PATH",      str(MODELS_DIR / "Qwen2.5-3B-Instruct-Q3_K_M.gguf"))
 
 # ── Index paths ───────────────────────────────────────────────────────────────
 FAISS_INDEX_PATH = INDEX_DIR / "faiss.index"

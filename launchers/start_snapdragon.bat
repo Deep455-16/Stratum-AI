@@ -16,11 +16,18 @@ set LLM_BACKEND=snapdragon
 set QNN_ENABLED=1
 set QNN_BACKEND_TYPE=npu
 
-:: Allow override of model path
+:: Model paths — override via environment variables if models live elsewhere.
+:: SNAPDRAGON_MODEL_PATH : Qwen3-4B ONNX model directory
+:: EMBED_MODEL_PATH      : Sentence embedding model directory
+:: RERANKER_MODEL_PATH   : BGE reranker model directory
 if "%SNAPDRAGON_MODEL_PATH%"=="" set SNAPDRAGON_MODEL_PATH=models\Qwen3-4B-onnx
+if "%EMBED_MODEL_PATH%"==""      set EMBED_MODEL_PATH=models\MiniLM-L6-v2
+if "%RERANKER_MODEL_PATH%"==""   set RERANKER_MODEL_PATH=models\bge-reranker-base
 
 echo   LLM_BACKEND           = %LLM_BACKEND%
 echo   SNAPDRAGON_MODEL_PATH = %SNAPDRAGON_MODEL_PATH%
+echo   EMBED_MODEL_PATH      = %EMBED_MODEL_PATH%
+echo   RERANKER_MODEL_PATH   = %RERANKER_MODEL_PATH%
 echo   QNN_BACKEND_TYPE      = %QNN_BACKEND_TYPE%
 echo.
 
@@ -67,13 +74,15 @@ if not exist "%SNAPDRAGON_MODEL_PATH%\" (
 )
 echo [OK] ONNX model found.
 
-:: Check embedding model
-if not exist "models\MiniLM-L6-v2\model.safetensors" (
-    if not exist "models\MiniLM-L6-v2\pytorch_model.bin" (
-        echo [ERROR] Embedding model missing. Run install\install_snapdragon.bat.
+:: Check embedding model (uses EMBED_MODEL_PATH env var set above)
+if not exist "%EMBED_MODEL_PATH%\model.safetensors" (
+    if not exist "%EMBED_MODEL_PATH%\pytorch_model.bin" (
+        echo [ERROR] Embedding model not found at: %EMBED_MODEL_PATH%
+        echo         Run install\install_snapdragon.bat or set EMBED_MODEL_PATH to the correct path.
         goto :FAIL
     )
 )
+echo [OK] Embedding model found.
 
 :: Auto-ingest if index is missing
 if not exist "index_store\faiss.index" (
