@@ -120,11 +120,30 @@ if not exist "index_store\chunks.json" echo [] > "index_store\chunks.json"
 :: 7. Download embedding + reranker models
 echo.
 echo [6/7] Downloading embedding + reranker models...
+echo       Sizes: ~90 MB (MiniLM) + ~280 MB (BGE reranker)
+echo.
 python download_models.py
 if %errorlevel% neq 0 (
-    echo [ERROR] Model download failed.
+    echo.
+    echo [ERROR] Model download failed. Check the messages above.
+    echo         Common causes:
+    echo           - No internet connection
+    echo           - Hugging Face rate limit (set HF_TOKEN env var to fix)
+    echo         Re-run this installer once the issue is resolved.
     goto :FAIL
 )
+
+:: Verify embedding model file is actually on disk
+echo.
+echo [6/7] Verifying downloaded embedding model...
+if not exist "models\MiniLM-L6-v2\model.safetensors" (
+    if not exist "models\MiniLM-L6-v2\pytorch_model.bin" (
+        echo [ERROR] Embedding model missing: models\MiniLM-L6-v2\
+        echo         Run: python download_models.py  to retry the download.
+        goto :FAIL
+    )
+)
+echo [OK] Embedding model verified.
 
 :: 8. Download Qwen3-4B ONNX model
 echo.

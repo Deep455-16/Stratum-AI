@@ -117,12 +117,43 @@ if not exist "index_store\chunks.json" echo [] > "index_store\chunks.json"
 
 :: 8. Download models
 echo.
-echo [6/7] Downloading models (MiniLM, BGE reranker, Qwen2.5-3B GGUF)...
+echo [6/7] Downloading models (MiniLM embeddings, BGE reranker, Qwen2.5-3B GGUF)...
+echo       Sizes: ~90 MB + ~280 MB + ~1.5 GB  — this will take a few minutes.
+echo.
 python download_models.py
 if %errorlevel% neq 0 (
-    echo [ERROR] Model download failed.
+    echo.
+    echo [ERROR] Model download failed. Check the messages above.
+    echo         Common causes:
+    echo           - No internet connection
+    echo           - Hugging Face rate limit (set HF_TOKEN env var to fix)
+    echo         Re-run this installer once the issue is resolved.
     goto :FAIL
 )
+
+:: Verify each required model file is actually on disk
+echo.
+echo [6/7] Verifying downloaded model files...
+set MODELS_OK=1
+
+if not exist "models\MiniLM-L6-v2\model.safetensors" (
+    if not exist "models\MiniLM-L6-v2\pytorch_model.bin" (
+        echo [ERROR] Embedding model missing: models\MiniLM-L6-v2\
+        set MODELS_OK=0
+    )
+)
+if not exist "models\Qwen2.5-3B-Instruct-Q3_K_M.gguf" (
+    echo [ERROR] LLM model missing: models\Qwen2.5-3B-Instruct-Q3_K_M.gguf
+    set MODELS_OK=0
+)
+if "%MODELS_OK%"=="0" (
+    echo.
+    echo [ERROR] One or more required model files are missing.
+    echo         Run: python download_models.py
+    echo         to retry the download without re-running the full install.
+    goto :FAIL
+)
+echo [OK] All required model files verified.
 
 :: 9. Post-install check
 echo.
