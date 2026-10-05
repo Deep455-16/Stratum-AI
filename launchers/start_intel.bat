@@ -86,7 +86,11 @@ echo  ^|   Device  : CPU                       ^|
 echo  +---------------------------------------+
 echo.
 echo [INFO] Starting server... (Press Ctrl+C to stop)
+echo [INFO] Browser will open automatically in 3 seconds.
 echo.
+
+:: Launch browser after a short delay (runs in background, doesn't block server)
+start "" cmd /c "timeout /t 3 /nobreak >nul && start http://127.0.0.1:8000"
 
 python -m uvicorn server:app --host 127.0.0.1 --port 8000 --workers 1
 
