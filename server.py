@@ -237,9 +237,31 @@ def load_everything() -> None:
     files_count = len(set(c["file"] for c in state.chunks))
     print(f"[server] Ready. {len(state.chunks)} chunks from {files_count} file(s) indexed.")
 
+    # ── Open browser only after everything is fully loaded ───────────────────
+    # Poll /api/llm/health every 0.5 s; open browser the moment LLM is "ready".
+    # This prevents the UI from appearing before models are warm.
     if not os.environ.get("BROWSER_OPENED"):
         os.environ["BROWSER_OPENED"] = "1"
-        threading.Timer(1.5, lambda: webbrowser.open("http://127.0.0.1:8000/")).start()
+
+        def _open_when_ready():
+            import urllib.request
+            deadline = time.time() + 120          # give up after 2 min
+            while time.time() < deadline:
+                try:
+                    with urllib.request.urlopen(
+                        "http://127.0.0.1:8000/api/llm/health", timeout=1
+                    ) as resp:
+                        data = json.loads(resp.read())
+                        if data.get("status") == "ready":
+                            webbrowser.open("http://127.0.0.1:8000/")
+                            return
+                except Exception:
+                    pass
+                time.sleep(0.5)
+            # Fallback: open anyway after timeout
+            webbrowser.open("http://127.0.0.1:8000/")
+
+        threading.Thread(target=_open_when_ready, daemon=True).start()
 
 
 # ---------------------------------------------------------------------------

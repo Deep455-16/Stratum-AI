@@ -77,12 +77,29 @@ class LlamaBackend(LLMBackend):
                 "(See install.bat or requirements-intel.txt for details.)"
             ) from exc
 
+        import os
+        import multiprocessing
+
+        # Use all physical CPU cores for prompt processing and generation.
+        # n_threads      → token generation (prefill + decode)
+        # n_threads_batch → prompt evaluation (parallel batch processing)
+        n_cpu = os.cpu_count() or 4
+        n_threads = max(4, n_cpu)
+        n_threads_batch = max(4, n_cpu)
+
         t0 = time.time()
         self._llm = Llama(
-            model_path=self._model_path,
-            n_ctx=self._n_ctx,
-            n_gpu_layers=self._n_gpu_layers,
-            verbose=self._verbose,
+            model_path    = self._model_path,
+            n_ctx         = self._n_ctx,
+            n_gpu_layers  = self._n_gpu_layers,   # -1 = offload all layers to Vulkan GPU
+            n_threads     = n_threads,             # CPU threads for decode
+            n_threads_batch = n_threads_batch,     # CPU threads for prompt eval
+            n_batch       = 512,                   # tokens processed per batch (larger = faster prompt eval)
+            use_mmap      = True,                  # memory-map model file (faster load, lower RAM copy)
+            use_mlock     = True,                  # lock model in RAM (prevent OS swapping mid-inference)
+            flash_attn    = True,                  # Flash Attention 2 (faster, lower VRAM)
+            offload_kqv   = True,                  # offload KV cache to GPU (reduces CPU bottleneck)
+            verbose       = self._verbose,
         )
         self._load_time_ms = int((time.time() - t0) * 1000)
         print(

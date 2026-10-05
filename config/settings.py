@@ -47,9 +47,13 @@ RERANKER_LOW_THRESHOLD   = float(os.getenv("RERANKER_LOW_THRESHOLD",  "0.35"))
 DEDUP_SIM_THRESHOLD      = float(os.getenv("DEDUP_SIM_THRESHOLD", "0.92"))
 
 # ── LLM ──────────────────────────────────────────────────────────────────────
-N_CTX          = int(os.getenv("N_CTX", "8192"))  # Enough for sources + history without truncation
-N_GPU_LAYERS   = int(os.getenv("N_GPU_LAYERS", "-1"))
-MAX_NEW_TOKENS = int(os.getenv("MAX_NEW_TOKENS", "512"))
+# N_CTX: Qwen2.5-3B has a 32k context window but the KV-cache scales as
+#        O(n_ctx²). 4096 covers our longest prompts with headroom and halves
+#        memory vs 8192 → directly improves tokens/s on CPU/Vulkan paths.
+N_CTX          = int(os.getenv("N_CTX", "4096"))
+N_BATCH        = int(os.getenv("N_BATCH", "512"))       # prompt eval batch size
+N_GPU_LAYERS   = int(os.getenv("N_GPU_LAYERS", "-1"))   # -1 = all layers on GPU (Vulkan)
+MAX_NEW_TOKENS = int(os.getenv("MAX_NEW_TOKENS", "768"))
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.1"))
 LLM_TOP_P       = float(os.getenv("LLM_TOP_P", "0.8"))
 LLM_REPEAT_PENALTY = float(os.getenv("LLM_REPEAT_PENALTY", "1.1"))
